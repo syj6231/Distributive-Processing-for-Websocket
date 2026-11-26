@@ -1,5 +1,5 @@
 # Live Stream Local OrderBook System
-> **C++17 기반 초저지연(Ultra-low Latency) 다중 거래소 실시간 오더북 수집·검증·정규화 및 스트리밍 파이프라인**
+> **C++17 기반 다중 거래소 실시간 오더북 수집·검증·정규화 및 스트리밍 파이프라인**
 
 [![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
 [![Boost](https://img.shields.io/badge/Boost-Asio%20%7C%20Beast%20%7C%20Lockfree-orange?style=flat-square)](https://www.boost.org/)
@@ -16,15 +16,15 @@
 본 프로젝트는 실시간 데이터 수집 계층(`Ingestor` ~ `Kinesis`)과 글로벌 오더북 병합 계층(`Aggregator`)으로 역할을 분담하여 진행했습니다.
 * **핵심 담당 영역 (Ingestion & Streaming Pipeline):**
   * **Ingestor:** 거래소별(Binance, Bybit, OKX) WebSocket 연결 및 A/B Dual-Stream 이중화 수집 엔진 구현
-  * **Validator:** Lock-Free SPSC Queue 기반 스레드 분리, 이기종 시퀀스 검증(`Gap`/`Duplicate` 탐지) 및 `Best Delta` 선형화 알고리즘 설계
-  * **Writer & Streaming:** Protobuf 바이너리 직렬화, 하이브리드 배치(`50건 / 100ms`) 및 거래소명 파티션 키 기반 AWS Kinesis 퍼블리셔 구현
+  * **Validator:** Lock-Free SPSC Queue 기반 스레드 분리, 이기종 시퀀스 검증`Gap`/`Duplicate` 탐지 및 `Best Delta` 선형화 알고리즘 설계
+  * **Writer & Streaming:** Protobuf 바이너리 직렬화, 하이브리드 배치`50건 / 100ms` 및 거래소명 파티션 키 기반 AWS Kinesis 퍼블리셔 구현
   * **Performance Optimization:** `Noisy Neighbor` 병목 해결을 위한 Multi-Process 격리 아키텍처 전환 및 직렬화 포맷 벤치마크 수행
 * **Downstream 협업 인터페이스 (`Aggregator` 연계):**
-  * 후속 병합 엔진(`Aggregator`)이 거래소별 예외 처리 없이 이벤트 시간(`event_ts`) 기준으로 즉시 글로벌 오더북을 조립할 수 있도록, 단일 `OrderbookDelta` 바이너리 스키마와 샤드 단위 순서가 보장된 클린 스트림을 공급하는 인터페이스 설계
+  * 후속 병합 엔진`Aggregator`이 거래소별 예외 처리 없이 이벤트 시간`event_ts` 기준으로 즉시 글로벌 오더북을 조립할 수 있도록, 단일 `OrderbookDelta` 바이너리 스키마와 샤드 단위 순서가 보장된 클린 스트림을 공급하는 인터페이스 설계
 
 ---
 
-## 📑 목차
+## 목차
 1. [프로젝트 배경 및 해결 과제](#1-프로젝트-배경-및-해결-과제)
 2. [기술 스택 및 선정 근거](#2-기술-스택-및-선정-근거)
 3. [전체 시스템 아키텍처](#3-전체-시스템-아키텍처)
@@ -39,10 +39,10 @@
 
 24시간 분산 운영되는 암호화폐 시장에서는 동일 자산(`BTC/USDT`, `ETH/USDT`, `SOL/USDT`)이라도 거래소별 유동성 차이에 따라 밀리초(ms) 단위의 가격 괴리가 발생합니다. 이를 포착하기 위한 실시간 데이터 수집 파이프라인을 구축하며 다음 4가지 기술적 난제를 해결하는 데 집중했습니다.
 
-* **네트워크 불완전성 극복 및 데이터 정합성:** WebSocket 패킷 손실, 순서 뒤바뀜(Out-of-Order), 네트워크 지터(Jitter) 환경에서도 단일 선형화(Linearized) 이벤트 스트림 보장
-* **이기종 프로토콜 및 시퀀스 체계 통합:** 거래소마다 상이한 스냅샷·델타 규칙, 타임스탬프 포맷, 시퀀스 검증 로직을 단일 내부 스키마로 정규화
-* **자원 격리를 통한 예측 가능한 지연(Predictable Latency):** 고빈도 트래픽을 발생시키는 특정 거래소의 부하가 타 거래소 파이프라인에 전파되는 `Noisy Neighbor` 현상 원천 차단
-* **고효율 스트리밍 전송:** 대용량 호가 데이터의 직렬화 오버헤드와 네트워크 왕복 지연(RTT)을 최소화하여 AWS Kinesis로 안정적 적재
+* 네트워크 불완전성 극복 및 데이터 정합성: WebSocket 패킷 손실, 순서 뒤바뀜(Out-of-Order), 네트워크 지터(Jitter) 환경에서도 단일 선형화(Linearized) 이벤트 스트림 보장
+* 이기종 프로토콜 및 시퀀스 체계 통합: 거래소마다 상이한 스냅샷·델타 규칙, 타임스탬프 포맷, 시퀀스 검증 로직을 단일 내부 스키마로 정규화
+* 자원 격리를 통한 예측 가능한 지연(Predictable Latency): 고빈도 트래픽을 발생시키는 특정 거래소의 부하가 타 거래소 파이프라인에 전파되는 `Noisy Neighbor` 현상 원천 차단
+* 고효율 스트리밍 전송: 대용량 호가 데이터의 직렬화 오버헤드와 네트워크 왕복 지연(RTT)을 최소화하여 AWS Kinesis로 안정적 적재
 
 ---
 
@@ -235,10 +235,6 @@ make -j$(nproc)
 
 ---
 
-## 7. 향후 고도화 가능성
 
-1. Object Pool 기반 Zero-Allocation 최적화: 현재 수신 시마다 `std::make_shared`로 동적 할당되는 `Delta` 객체를 사전 할당된 Object Pool에서 재사용하도록 전환하여 힙 할당자 경합 추가 제거
-2. 하드웨어 친화적 최적화 (NUMA & CPU Pinning): Linux 환경에서의 `pthread_setaffinity_np` 기반 코어 고정 활성화 및 NUMA 노드 로컬 메모리 할당을 통한 캐시 히트율 극대화
-3. 실시간 관측성(Observability) 파이프라인 구축: 거래소별 TPS, P50/P99/P99.9 지연 분포, `Gap`/`Duplicate` 발생률을 시계열 지표로 수집해 임계치 초과 시 자동 알림을 발송하는 운영 모니터링 체계 구축
 
 
